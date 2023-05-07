@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"github.com/dave/dst/decorator"
 	"github.com/misnaged/annales/logger"
 	"github.com/misnaged/import_organizer/package_collector"
 	"go/ast"
+	vanillaFmt "go/format"
 	"go/parser"
 	"go/printer"
 	"go/token"
@@ -16,8 +16,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
-	vanillaFmt "go/format"
 
 	_ "unsafe"
 
@@ -381,6 +379,14 @@ func (abs *AbstractSxTree) WriteImps(files []string) {
 	}
 
 }
+
+var (
+	kek, _  = os.Create("kek.txt")
+	lol     = log.New(kek, "", 0)
+	kek2, _ = os.Create("kek2.txt")
+	lol2    = log.New(kek2, "", 0)
+)
+
 func main() {
 	package_collector.Populate()
 	package_collector.Std()
@@ -393,10 +399,14 @@ func main() {
 	}
 	for i := range files {
 		abs.separator[files[i]] = NewFileStruct()
-		abs.GetImports(files[i])
+		linesToCut, err := abs.GetImports(files[i])
+		if err != nil {
+			logger.Log().Errorf("error GetImports %v", err)
+			os.Exit(1)
+		}
 		abs.GetBody(files[i])
-		newBody := Swap(abs.separator[files[i]].imports, abs.separator[files[i]].body)
-		abs.separator[files[i]].body = newBody
+		abs.separator[files[i]].body = Swap(abs.separator[files[i]].body, linesToCut)
+		abs.separator[files[i]].imports = nil
 	}
 	abs.WriteImps(files)
 
@@ -452,8 +462,6 @@ func (abs *AbstractSxTree) Sort(str []string) []string {
 				str[arrIdx] = v[i]
 			}
 		}
-		//kekich := fmt.Sprintf("str:%s", str[arrIdx])
-		//lol2.Printf(kekich)
 
 	}
 	//for i := range k {
@@ -466,7 +474,7 @@ func (abs *AbstractSxTree) Sort(str []string) []string {
 func (abs *AbstractSxTree) CombineIntoPath(imprs []*ast.ImportSpec) {
 	for i := range imprs {
 		if imprs[i].Doc != nil && imprs[i].Name == nil {
-			commentedPath := fmt.Sprintf(`//%s    %s`, imprs[i].Doc.Text(), imprs[i].Path.Value)
+			commentedPath := fmt.Sprintf(`//%s    %s%s`, imprs[i].Doc.Text(), imprs[i].Path.Value, "\n")
 			abs.advanced[imprs[i].Path.Value] = commentedPath
 		}
 		if imprs[i].Doc == nil && imprs[i].Name != nil {
@@ -474,7 +482,7 @@ func (abs *AbstractSxTree) CombineIntoPath(imprs []*ast.ImportSpec) {
 			abs.advanced[imprs[i].Path.Value] = namedPath
 		}
 		if imprs[i].Doc != nil && imprs[i].Name != nil {
-			commentedNamedPath := fmt.Sprintf(`//%s    %s%s`, imprs[i].Doc.Text(), imprs[i].Name.String(), imprs[i].Path.Value)
+			commentedNamedPath := fmt.Sprintf(`//%s    %s%s%s`, imprs[i].Doc.Text(), imprs[i].Name.String(), imprs[i].Path.Value, "\n")
 			abs.advanced[imprs[i].Path.Value] = commentedNamedPath
 		}
 		if imprs[i].Doc == nil && imprs[i].Name == nil {
@@ -582,52 +590,51 @@ func (abs *AbstractSxTree) WriteImports(b []byte, str []string, file string) err
 
 	var buf bytes.Buffer
 	out, _ := format(abs.fset, abs.astFile, abs.sourceAdj, abs.indentAdj, b, cfg)
-
-	buf.Write(out)
-	AddImports(buf.Bytes(), abs.separator[file])
-
-	return nil
-}
-
-func Swap(imports, body []byte) []byte {
-	scannerImports := bufio.NewScanner(bytes.NewReader(imports))
-	scannerImports.Split(bufio.ScanLines)
-	scannerBody := bufio.NewScanner(bytes.NewReader(body))
-	scannerBody.Split(bufio.ScanLines)
-	var newbody []byte
-	var bodyBB, importsBB [][]byte
-	for scannerImports.Scan() {
-		importsBB = append(importsBB, scannerImports.Bytes())
-	}
-	for scannerBody.Scan() {
-		bodyBB = append(bodyBB, scannerBody.Bytes())
-	}
-
-	linesBeingCut := len(importsBB)
-	bodyBB = append(bodyBB[linesBeingCut:])
-	for i := range bodyBB {
-		newbody = append(newbody, bodyBB[i]...)
-		newbody = append(newbody, []byte("\n")...)
-	}
-
-	return newbody
-}
-
-func (abs *AbstractSxTree) GetImports(file string) error {
-	abs.ReleaseTreeData()
-	b, _ := os.ReadFile(file)
-	err := abs.NewTree(b, file)
+	trimmed, err := abs.TrimSpace(file, out)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	abs.astFile, err = parser.ParseFile(abs.fset, "", b, parser.ImportsOnly)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	out, _ := format(abs.fset, abs.astFile, abs.sourceAdj, abs.indentAdj, b, cfg)
-	AddImports(out, abs.separator[file])
+	buf.Write(trimmed)
+	AddImports(buf.Bytes(), abs.separator[file])
 	return nil
+}
+
+func Swap(body []byte, linesBeingCut int) []byte {
+	body = append(body[linesBeingCut:])
+	return body
+}
+func (abs *AbstractSxTree) GetImports(file string) (int, error) {
+	abs.ReleaseTreeData()
+	var rparent int
+
+	if ImportCheck(file) {
+		b, _ := os.ReadFile(file)
+		err := abs.NewTree(b, file)
+		if err != nil {
+			return 0, fmt.Errorf("%w", err)
+		}
+
+		//abs.astFile, err = parser.ParseFile(abs.fset, "", b, parser.ParseComments)
+		//if err != nil {
+		//	log.Fatalln(err)
+		//}
+		for i := 0; i < len(abs.astFile.Decls); i++ {
+			d := abs.astFile.Decls[i]
+			switch d.(type) {
+			case *ast.FuncDecl:
+			case *ast.GenDecl:
+
+				dd := d.(*ast.GenDecl)
+
+				if dd.Tok == token.IMPORT {
+					rparent = int(dd.Rparen)
+				}
+			}
+		}
+		out, _ := format(abs.fset, abs.astFile, abs.sourceAdj, abs.indentAdj, b, cfg)
+		AddImports(out, abs.separator[file])
+	}
+	return rparent, nil
 }
 func (abs *AbstractSxTree) GetBody(file string) error {
 	abs.ReleaseTreeData()

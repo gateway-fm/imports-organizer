@@ -22,10 +22,10 @@ func ExternalPackages() {
 	for i := range PackagesSlice {
 		path := strings.Split(PackagesSlice[i], "/")
 		if len(path) >= 2 {
-			if path[1] == "your project name" {
+			if path[1] == "gateway-fm" {
 				str := strings.Join(path, "/")
 				Packages[str] = 2
-			} else if path[0] == "github.com" && path[1] != "your project name" {
+			} else if path[0] == "github.com" && path[1] != "gateway-fm" {
 				str := strings.Join(path, "/")
 				Packages[str] = 1
 			}
