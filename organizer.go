@@ -380,10 +380,18 @@ func (abs *AbstractSxTree) WriteImps(files []string) {
 
 }
 
+var (
+	kek, _  = os.Create("kek.txt")
+	lol     = log.New(kek, "", 0)
+	kek2, _ = os.Create("kek2.txt")
+	lol2    = log.New(kek2, "", 0)
+)
+
 func main() {
 	package_collector.Populate()
 	package_collector.Std()
 	package_collector.ExternalPackages()
+	//lol3.Println(package_collector.Packages)
 	files := package_collector.GoFiles()
 	abs := &AbstractSxTree{
 		separator: make(map[string]*FileStruct),
@@ -456,7 +464,10 @@ func (abs *AbstractSxTree) Sort(str []string) []string {
 		}
 
 	}
-
+	//for i := range k {
+	//keka := fmt.Sprintf("k:%s v:%s", k[i], v[i])
+	//lol.Printf(keka)
+	//}
 	return str
 }
 
@@ -501,6 +512,7 @@ type ImportsArr struct {
 }
 
 func (abs *AbstractSxTree) getImports(file string) ([]string, error) {
+	//fset := token.NewFileSet() // positions are relative to fset
 	src, err := os.ReadFile(file)
 
 	err = abs.NewTree(src, file)
@@ -588,7 +600,26 @@ func (abs *AbstractSxTree) WriteImports(b []byte, str []string, file string) err
 }
 
 func Swap(body []byte, linesBeingCut int) []byte {
+	//scannerImports := bufio.NewScanner(bufio.NewReader(bytes.NewReader(imports)))
+	//scannerImports.Split(bufio.ScanLines)
+	//scannerBody := bufio.NewScanner(bytes.NewReader(body))
+	//scannerBody.Split(bufio.ScanLines)
+	//var newbody []byte
+	//var bodyBB, importsBB [][]byte
+
+	//for scannerBody.Scan() {
+	//	bodyBB = append(bodyBB, scannerBody.Bytes())
+	//}
+
+	//for i := range bodyBB {
+	//	lol.Println(string(bodyBB[i]))
+	//}
+	//for i := range importsBB {
+	//	lol2.Println(string(importsBB[i]))
+	//}
+
 	body = append(body[linesBeingCut:])
+
 	return body
 }
 func (abs *AbstractSxTree) GetImports(file string) (int, error) {

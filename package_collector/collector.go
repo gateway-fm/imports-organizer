@@ -25,7 +25,7 @@ func ExternalPackages() {
 			if path[1] == "gateway-fm" {
 				str := strings.Join(path, "/")
 				Packages[str] = 2
-			} else if path[0] == "github.com" && path[1] != "gateway-fm" {
+			} else if path[0] == "github.com" || path[0] == "google.golang.org" || path[0] == "golang.org" || path[0] == "go.uber.org" || path[0] == "gopkg.in" || path[0] == "go.opentelemetry.io" && path[1] != "your-project" {
 				str := strings.Join(path, "/")
 				Packages[str] = 1
 			}
