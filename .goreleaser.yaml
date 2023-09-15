@@ -2,7 +2,7 @@ before:
   hooks:
     - go mod tidy
 builds:
-  - main: ./cmd/warp.go
+  - main: ./organizer.go
     binary: "imports-organiser"
     env:
       - CGO_ENABLED=0
